@@ -4,6 +4,7 @@ let vertexArray;
 let attriutes;
 let shaderProgram;
 let projection;
+let modelview;
 
 function initialize() {
   canvas = document.getElementById('canvas');
@@ -19,11 +20,12 @@ function initialize() {
   
   let vertexSource = `#version 300 es
 uniform mat4 projection;
+uniform mat4 modelview;
 
 in vec4 vposition;
 
 void main() {
-  gl_Position = projection * vposition;
+  gl_Position = projection * modelview * vposition;
 }
   `;
 
@@ -40,6 +42,8 @@ void main() {
   shaderProgram = new ShaderProgram(vertexSource, fragmentSource);
   vertexArray = new VertexArray(shaderProgram, attributes);
 
+  modelview = Matrix4.translate(-0.1, 0.1, 0);
+
   resizeWindow();
 }
 
@@ -49,14 +53,13 @@ function render() {
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
   shaderProgram.bind();
-
-
-  let projectionUniform = gl.getUniformLocation(shaderProgram.program, 'projection');
-  gl.uniformMatrix4fv(projectionUniform, false, projection.toBuffer());
+  shaderProgram.setUniformMatrix4('projection', projection);
+  shaderProgram.setUniformMatrix4('modelview', modelview);
 
   vertexArray.bind();
   vertexArray.drawSequence(gl.TRIANGLES);
   vertexArray.unbind();
+
   shaderProgram.unbind();
 }
 
