@@ -42,7 +42,8 @@ void main() {
   shaderProgram = new ShaderProgram(vertexSource, fragmentSource);
   vertexArray = new VertexArray(shaderProgram, attributes);
 
-  modelview = Matrix4.translate(-0.1, 0.1, 0);
+  // modelview = Matrix4.translate(-0.1, 0.1, 0);
+  modelview = Matrix4.rotate(Vector4.forward(), 45);
 
   resizeWindow();
 }
