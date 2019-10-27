@@ -12,12 +12,36 @@ function initialize() {
   gl = canvas.getContext('webgl2');
 
   attributes = new VertexAttributes();
+
   let positions = [
     0.0, 0.0, 0.0, 1.0,
     1.0, 0.0, 0.0, 1.0,
+    0.0, 1.0, 0.0, 1.0,
     1.0, 1.0, 0.0, 1.0,
+
+    0.0, 0.0, 1.0, 1.0,
+    1.0, 0.0, 1.0, 1.0,
+    0.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0,
   ];
+
+  let indices = [
+    0, 1, 3,
+    0, 3, 2,
+    1, 5, 7,
+    1, 7, 3,
+    2, 3, 7,
+    2, 7, 6,
+    4, 0, 2,
+    4, 2, 6,
+    5, 4, 6,
+    5, 6, 7,
+    4, 5, 1,
+    4, 1, 0,
+  ];
+
   attributes.addAttribute('vposition', 3, 4, positions);
+  attributes.addIndices(indices);
   
   let vertexSource = `#version 300 es
 uniform mat4 projection;
@@ -56,6 +80,9 @@ void main() {
   // This goes on the window rather than the canvas so that drags can keep
   // going even when the mouse goes off the canvas.
   window.addEventListener('mousemove', mouseMove);
+
+  gl.cullFace(gl.BACK);
+  gl.enable(gl.CULL_FACE);
 }
 
 // --------------------------------------------------------------------------- 
@@ -71,7 +98,7 @@ function render() {
   // shaderProgram.setUniformMatrix4('modelview', new Matrix4());
 
   vertexArray.bind();
-  vertexArray.drawSequence(gl.TRIANGLES);
+  vertexArray.drawIndexed(gl.TRIANGLES);
   vertexArray.unbind();
 
   shaderProgram.unbind();
