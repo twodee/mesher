@@ -14,33 +14,86 @@ function initialize() {
   attributes = new VertexAttributes();
 
   let positions = [
-    0.0, 0.0, 0.0, 1.0,
-    1.0, 0.0, 0.0, 1.0,
-    0.0, 1.0, 0.0, 1.0,
-    1.0, 1.0, 0.0, 1.0,
+    0, 0, 1, 1,
+    1, 0, 1, 1,
+    0, 1, 1, 1,
+    1, 1, 1, 1,
 
-    0.0, 0.0, 1.0, 1.0,
-    1.0, 0.0, 1.0, 1.0,
-    0.0, 1.0, 1.0, 1.0,
-    1.0, 1.0, 1.0, 1.0,
+    0, 0, 0, 1,
+    1, 0, 0, 1,
+    0, 1, 0, 1,
+    1, 1, 0, 1,
+
+    1, 0, 1, 1,
+    1, 0, 0, 1,
+    1, 1, 1, 1,
+    1, 1, 0, 1,
+
+    0, 0, 0, 1,
+    0, 0, 1, 1,
+    0, 1, 0, 1,
+    0, 1, 1, 1,
+
+    0, 1, 1, 1,
+    1, 1, 1, 1,
+    0, 1, 0, 1,
+    1, 1, 0, 1,
+
+    0, 0, 0, 1,
+    1, 0, 0, 1,
+    0, 0, 1, 1,
+    1, 0, 1, 1,
+  ];
+
+  let normals = [
+    0, 0, 1, 0,
+    0, 0, 1, 0,
+    0, 0, 1, 0,
+    0, 0, 1, 0,
+
+    0, 0, -1, 0,
+    0, 0, -1, 0,
+    0, 0, -1, 0,
+    0, 0, -1, 0,
+
+    1, 0, 0, 0,
+    1, 0, 0, 0,
+    1, 0, 0, 0,
+    1, 0, 0, 0,
+
+    -1, 0, 0, 0,
+    -1, 0, 0, 0,
+    -1, 0, 0, 0,
+    -1, 0, 0, 0,
+
+    0, 1, 0, 0,
+    0, 1, 0, 0,
+    0, 1, 0, 0,
+    0, 1, 0, 0,
+
+    0, -1, 0, 0,
+    0, -1, 0, 0,
+    0, -1, 0, 0,
+    0, -1, 0, 0,
   ];
 
   let indices = [
     0, 1, 3,
     0, 3, 2,
-    1, 5, 7,
-    1, 7, 3,
-    2, 3, 7,
-    2, 7, 6,
-    4, 0, 2,
-    4, 2, 6,
     5, 4, 6,
     5, 6, 7,
-    4, 5, 1,
-    4, 1, 0,
+    8, 9, 11,
+    8, 11, 10,
+    12, 13, 15,
+    12, 15, 14,
+    16, 17, 19,
+    16, 19, 18,
+    20, 21, 23,
+    20, 23, 22,
   ];
 
-  attributes.addAttribute('vposition', 3, 4, positions);
+  attributes.addAttribute('vposition', 24, 4, positions);
+  attributes.addAttribute('vnormal', 24, 4, normals);
   attributes.addIndices(indices);
   
   let vertexSource = `#version 300 es
@@ -48,19 +101,28 @@ uniform mat4 projection;
 uniform mat4 modelview;
 
 in vec4 vposition;
+in vec4 vnormal;
+
+out vec3 fnormal;
+out vec3 fcolor;
 
 void main() {
   gl_Position = projection * modelview * vposition;
+  fcolor = vposition.xyz;
+  fnormal = vnormal.xyz;
 }
   `;
 
   let fragmentSource = `#version 300 es
 precision mediump float;
 
+in vec3 fcolor;
+in vec3 fnormal;
 out vec4 fragmentColor;
 
 void main() {
-  fragmentColor = vec4(1.0, 0.0, 0.5, 1.0);
+  float litness = abs(dot(fnormal, normalize(vec3(1, 1, 1))));
+  fragmentColor = vec4(fcolor * litness, 1.0);
 }
   `;
 
@@ -68,8 +130,10 @@ void main() {
   vertexArray = new VertexArray(shaderProgram, attributes);
 
   trackball = new Trackball();
-  // modelview = Matrix4.translate(-0.1, 0.1, 0);
-  modelview = Matrix4.rotate(Vector4.forward(), 45);
+
+  gl.cullFace(gl.BACK);
+  gl.enable(gl.CULL_FACE);
+  gl.enable(gl.DEPTH_TEST);
 
   resizeWindow();
 
@@ -80,9 +144,6 @@ void main() {
   // This goes on the window rather than the canvas so that drags can keep
   // going even when the mouse goes off the canvas.
   window.addEventListener('mousemove', mouseMove);
-
-  gl.cullFace(gl.BACK);
-  gl.enable(gl.CULL_FACE);
 }
 
 // --------------------------------------------------------------------------- 
@@ -94,7 +155,7 @@ function render() {
 
   shaderProgram.bind();
   shaderProgram.setUniformMatrix4('projection', projection);
-  shaderProgram.setUniformMatrix4('modelview', trackball.rotation);
+  shaderProgram.setUniformMatrix4('modelview', Matrix4.translate(0, 0, -10).multiplyMatrix(trackball.rotation).multiplyMatrix(Matrix4.translate(-0.5, -0.5, -0.5)));
   // shaderProgram.setUniformMatrix4('modelview', new Matrix4());
 
   vertexArray.bind();
@@ -114,16 +175,17 @@ function resizeWindow() {
 
 function updateProjection() {
   let windowAspect = canvas.width / canvas.height;
-  projection = Matrix4.ortho(-1, 1, -1, 1);
+  // projection = Matrix4.ortho(-1, 1, -1, 1);
+  projection = Matrix4.fovPerspective(45, windowAspect, 0.01, 1000);
 }
 
 function mouseDown(e) {
-  trackball.start(e.clientX, e.clientY);
+  trackball.start(e.clientX, canvas.height - 1 - e.clientY);
 }
 
 function mouseMove(e) {
   if (e.buttons === 1) {
-    trackball.drag(e.clientX, e.clientY);
+    trackball.drag(e.clientX, canvas.height - 1 - e.clientY, 3);
     render();
   }
 }
