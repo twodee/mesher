@@ -103,25 +103,32 @@ uniform mat4 modelview;
 in vec4 vposition;
 in vec4 vnormal;
 
+out vec3 fposition;
 out vec3 fnormal;
 out vec3 fcolor;
 
 void main() {
   gl_Position = projection * modelview * vposition;
+
+  fposition = (modelview * vposition).xyz;
   fcolor = vposition.xyz;
-  fnormal = vnormal.xyz;
+  fnormal = normalize((modelview * vnormal).xyz);
 }
   `;
 
   let fragmentSource = `#version 300 es
 precision mediump float;
 
-in vec3 fcolor;
+in vec3 fposition;
 in vec3 fnormal;
+in vec3 fcolor;
+
 out vec4 fragmentColor;
 
 void main() {
-  float litness = abs(dot(fnormal, normalize(vec3(1, 1, 1))));
+  vec3 fragment_to_light = normalize(vec3(0.0) - fposition);
+  vec3 normal = normalize(fnormal);
+  float litness = max(0.0, dot(normal, fragment_to_light));
   fragmentColor = vec4(fcolor * litness, 1.0);
 }
   `;
