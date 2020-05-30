@@ -14,9 +14,12 @@ let zoom;
 function initialize() {
   canvas = document.getElementById('canvas');
   gl = canvas.getContext('webgl2');
+  // gl.getExtension('OES_standard_derivatives');
+
   zoom = -10;
 
-  trimesh = TrimeshIO.readObj('/Users/johnch/Desktop/cylinder.obj');
+  trimesh = TrimeshIO.readObj('/home/twodee/Desktop/suzanne.obj');
+  trimesh.separateFaces();
   // trimesh = Prefab.cube();
 
   attributes = new VertexAttributes();
@@ -24,16 +27,37 @@ function initialize() {
   attributes.addAttribute('vnormal', trimesh.vertexCount, 4, trimesh.getFlatNormals());
   attributes.addIndices(trimesh.getFlatFaces());
 
+  const barycentricCoordinates = new Array(trimesh.vertexCount * 3);
+  for (let i = 0; i < trimesh.vertexCount * 3; ) {
+    barycentricCoordinates[i + 0] = 1;
+    barycentricCoordinates[i + 1] = 0;
+    barycentricCoordinates[i + 2] = 0;
+    i += 3;
+
+    barycentricCoordinates[i + 0] = 0;
+    barycentricCoordinates[i + 1] = 1;
+    barycentricCoordinates[i + 2] = 0;
+    i += 3;
+
+    barycentricCoordinates[i + 0] = 0;
+    barycentricCoordinates[i + 1] = 0;
+    barycentricCoordinates[i + 2] = 1;
+    i += 3;
+  }
+  attributes.addAttribute('vbarycentric', trimesh.vertexCount, 3, barycentricCoordinates);
+
   let vertexSource = `#version 300 es
 uniform mat4 projection;
 uniform mat4 modelview;
 
 in vec4 vposition;
 in vec4 vnormal;
+in vec3 vbarycentric;
 
 out vec3 fposition;
 out vec3 fnormal;
 out vec3 fcolor;
+out vec3 fbarycentric;
 
 void main() {
   gl_Position = projection * modelview * vposition;
@@ -41,6 +65,7 @@ void main() {
   fposition = (modelview * vposition).xyz;
   fcolor = vec3(1.0);
   fnormal = normalize((modelview * vnormal).xyz);
+  fbarycentric = vbarycentric;
 }
   `;
 
@@ -50,16 +75,32 @@ precision mediump float;
 in vec3 fposition;
 in vec3 fnormal;
 in vec3 fcolor;
+in vec3 fbarycentric;
 
 out vec4 fragmentColor;
 
+float edgeFactor() {
+  vec3 d = fwidth(fbarycentric);
+  vec3 a3 = smoothstep(vec3(0.0), d * 1.5, fbarycentric);
+  return min(min(a3.x, a3.y), a3.z);
+}
+
 void main() {
-  vec3 fragment_to_light = normalize(vec3(0.0) - fposition);
-  vec3 normal = normalize(fnormal);
-  float litness = max(0.0, dot(normal, fragment_to_light));
-  fragmentColor = vec4(fcolor * litness, 1.0);
+  // if (any(lessThan(fbarycentric, vec3(0.1)))) {
+  if (edgeFactor() < 0.4) {
+    // fragmentColor = vec4(fbarycentric, 1.0); //vec4(fcolor * litness, 1.0);
+    vec3 fragment_to_light = normalize(vec3(0.0) - fposition);
+    vec3 normal = normalize(fnormal);
+    float litness = max(0.0, dot(normal, fragment_to_light));
+    // fragmentColor = vec4(fcolor * litness, 1.0);
+    fragmentColor = vec4(1.0);
+  } else {
+    discard;
+  }
 }
   `;
+
+  // wireframe http://codeflow.org/entries/2012/aug/02/easy-wireframe-display-with-barycentric-coordinates/
 
   shaderProgram = new ShaderProgram(vertexSource, fragmentSource);
   vertexArray = new VertexArray(shaderProgram, attributes);
@@ -67,7 +108,7 @@ void main() {
   trackball = new Trackball();
 
   gl.cullFace(gl.BACK);
-  gl.enable(gl.CULL_FACE);
+  // gl.enable(gl.CULL_FACE);
   gl.enable(gl.DEPTH_TEST);
 
   resizeWindow();
