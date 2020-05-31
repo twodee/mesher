@@ -1,3 +1,5 @@
+const {ipcRenderer} = require('electron');
+
 let canvas;
 let gl;
 let vertexArray;
@@ -14,11 +16,48 @@ let zoom;
 function initialize() {
   canvas = document.getElementById('canvas');
   gl = canvas.getContext('webgl2');
-  // gl.getExtension('OES_standard_derivatives');
 
+  trackball = new Trackball();
+
+  gl.cullFace(gl.BACK);
+  // gl.enable(gl.CULL_FACE);
+  gl.enable(gl.DEPTH_TEST);
+
+  resizeWindow();
+
+  // Register callbacks.
+  canvas.addEventListener('mousedown', mouseDown);
+  canvas.addEventListener('mouseup', mouseUp);
+  canvas.addEventListener('wheel', mouseWheel);
+
+  // This goes on the window rather than the canvas so that drags can keep
+  // going even when the mouse goes off the canvas.
+  window.addEventListener('mousemove', mouseMove);
+
+  ipcRenderer.send('getPath');
+  reset();
+}
+
+// --------------------------------------------------------------------------- 
+
+function reset() {
   zoom = -10;
+  trackball.reset();
+}
 
-  trimesh = TrimeshIO.readObj('/home/twodee/Desktop/suzanne.obj');
+// --------------------------------------------------------------------------- 
+
+function load(path) {
+  console.log(path);
+  // delete shader program, vertex array, vertex attributes
+  
+  if (this.shaderProgram) {
+    this.shaderProgram.destroy();
+    this.attributes.destroy();
+    this.vertexArray.destroy();
+  }
+
+  trimesh = TrimeshIO.readObj(path);
   trimesh.separateFaces();
   // trimesh = Prefab.cube();
 
@@ -105,22 +144,8 @@ void main() {
   shaderProgram = new ShaderProgram(vertexSource, fragmentSource);
   vertexArray = new VertexArray(shaderProgram, attributes);
 
-  trackball = new Trackball();
-
-  gl.cullFace(gl.BACK);
-  // gl.enable(gl.CULL_FACE);
-  gl.enable(gl.DEPTH_TEST);
-
-  resizeWindow();
-
-  // Register callbacks.
-  canvas.addEventListener('mousedown', mouseDown);
-  canvas.addEventListener('mouseup', mouseUp);
-  canvas.addEventListener('wheel', mouseWheel);
-
-  // This goes on the window rather than the canvas so that drags can keep
-  // going even when the mouse goes off the canvas.
-  window.addEventListener('mousemove', mouseMove);
+  reset();
+  render();
 }
 
 // --------------------------------------------------------------------------- 
@@ -130,19 +155,21 @@ function render() {
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
-  const center = Matrix4.translate(-trimesh.centroid.x, -trimesh.centroid.y, -trimesh.centroid.z);
+  if (trimesh) {
+    const center = Matrix4.translate(-trimesh.centroid.x, -trimesh.centroid.y, -trimesh.centroid.z);
 
-  shaderProgram.bind();
-  shaderProgram.setUniformMatrix4('projection', projection);
-  shaderProgram.setUniformMatrix4('modelview', Matrix4.translate(0, 0, zoom).multiplyMatrix(trackball.rotation).multiplyMatrix(center));
-  // shaderProgram.setUniformMatrix4('modelview', new Matrix4());
+    shaderProgram.bind();
+    shaderProgram.setUniformMatrix4('projection', projection);
+    shaderProgram.setUniformMatrix4('modelview', Matrix4.translate(0, 0, zoom).multiplyMatrix(trackball.rotation).multiplyMatrix(center));
+    // shaderProgram.setUniformMatrix4('modelview', new Matrix4());
 
-  vertexArray.bind();
-  // vertexArray.drawSequence(gl.POINTS);
-  vertexArray.drawIndexed(gl.TRIANGLES);
-  vertexArray.unbind();
+    vertexArray.bind();
+    // vertexArray.drawSequence(gl.POINTS);
+    vertexArray.drawIndexed(gl.TRIANGLES);
+    vertexArray.unbind();
 
-  shaderProgram.unbind();
+    shaderProgram.unbind();
+  }
 }
 
 function resizeWindow() {
@@ -185,3 +212,7 @@ function mouseWheel(e) {
 
 window.addEventListener('load', initialize);
 window.addEventListener('resize', resizeWindow, false);
+
+ipcRenderer.on('setPath', (event, path) => {
+  load(path);
+});
