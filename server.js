@@ -1,3 +1,4 @@
+const path = require('path');
 const {
   app,
   BrowserWindow,
@@ -118,6 +119,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: true
     },
+    icon: path.join(__dirname, 'assets/icons/png/512x512.png'),
   });
 
   browser.loadFile('index.html');
