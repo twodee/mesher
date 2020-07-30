@@ -3,7 +3,7 @@ const {ipcRenderer} = require('electron');
 let canvas;
 let gl;
 let vertexArray;
-let attriutes;
+let attributes;
 let shaderProgram;
 let projection;
 let modelview;
@@ -57,9 +57,11 @@ function load(path) {
     this.vertexArray.destroy();
   }
 
-  trimesh = TrimeshIO.readObj(path);
+  // trimesh = TrimeshIO.readObj(path);
+  // trimesh = Trimesh.sphere(1, new Vector3(0, 0, 0), 8, 8);
+
+  trimesh = Prefab.cube();
   trimesh.separateFaces();
-  // trimesh = Prefab.cube();
 
   attributes = new VertexAttributes();
   attributes.addAttribute('vposition', trimesh.vertexCount, 4, trimesh.getFlatPositions());
